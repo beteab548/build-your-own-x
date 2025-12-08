@@ -1,14 +1,30 @@
-'use client'; // This tells Next.js to run this on the client side
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { WebContainer } from '@webcontainer/api';
+import Split from 'react-split'; // The draggable splitter
+import CodeEditor from './Editor'; // The file you just made
+
+// Initial boilerplate code for the user
+const INITIAL_CODE = `const fs = require('fs');
+
+// 1. Let's create a simple database file
+fs.writeFileSync('db.json', JSON.stringify({ users: [] }));
+
+console.log('Database created!');
+
+// 2. Read it back to prove it exists
+const content = fs.readFileSync('db.json', 'utf-8');
+console.log('File contents:', content);
+`;
 
 export default function CodeRunner() {
+  const [code, setCode] = useState(INITIAL_CODE);
   const [output, setOutput] = useState("");
   const [webContainer, setWebContainer] = useState<WebContainer | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Boot up the browser-based Node.js engine
+  // Boot Node.js on load
   useEffect(() => {
     async function boot() {
       try {
@@ -17,75 +33,92 @@ export default function CodeRunner() {
         setLoading(false);
       } catch (error) {
         console.error("Boot failed:", error);
-        setOutput("Error: Your browser does not support WebContainers. Try Chrome or Edge.");
       }
     }
     boot();
   }, []);
 
-  // 2. The function that runs when you click the button
   const runCode = async () => {
     if (!webContainer) return;
     
     setOutput("Running...\n");
 
-    // A. Create a file called 'index.js' with some code
-    // (Later, we will get this code from a text editor input)
-    await webContainer.mount({
-      'index.js': {
-        file: {
-          contents: `
-            const os = require('os');
-            console.log('--- SYSTEM INFO ---');
-            console.log('Operating System: ' + os.platform());
-            console.log('Architecture: ' + os.arch());
-            console.log('Free Memory: ' + os.freemem());
-            console.log('-------------------');
-            console.log('Hello! I am running entirely inside your browser!');
-          `,
+    try {
+      // 1. Mount the code from the EDITOR into the virtual file system
+      await webContainer.mount({
+        'index.js': {
+          file: {
+            contents: code, // <--- This uses the state from the editor
+          },
         },
-      },
-    });
+      });
 
-    // B. Run 'node index.js'
-    const process = await webContainer.spawn('node', ['index.js']);
+      // 2. Run the file
+      const process = await webContainer.spawn('node', ['index.js']);
 
-    // C. Read the output and show it on screen
-    process.output.pipeTo(
-      new WritableStream({
-        write(data) {
-          setOutput((prev) => prev + data);
-        },
-      })
-    );
+      // 3. Stream output
+      process.output.pipeTo(
+        new WritableStream({
+          write(data) {
+            setOutput((prev) => prev + data);
+          },
+        })
+      );
+      
+      // 4. Catch errors (stderr)
+      // If the user writes bad code, we want to show the error!
+      process.exit.then((code) => {
+        if (code !== 0) {
+           setOutput(prev => prev + `\n[Process exited with code ${code}]`);
+        }
+      });
+
+    } catch (e) {
+      setOutput(`System Error: ${e}`);
+    }
   };
 
   return (
-    <div className="p-10 max-w-2xl mx-auto font-mono">
-      <h1 className="text-2xl font-bold mb-4">Build Your Own X - Engine Test</h1>
-      
-      {/* Status Indicator */}
-      <div className="mb-4">
-        Status: 
-        {loading ? (
-          <span className="text-yellow-500 font-bold"> Booting Node.js...</span>
-        ) : (
-          <span className="text-green-500 font-bold"> Ready</span>
-        )}
+    <div className="h-screen flex flex-col bg-gray-900 text-white">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+        <h1 className="font-bold text-xl">Build Your Own Database</h1>
+        <div className="flex gap-4 items-center">
+           <span className={`text-sm ${loading ? 'text-yellow-500' : 'text-green-500'}`}>
+             {loading ? 'Booting Node...' : '● System Ready'}
+           </span>
+           <button
+            onClick={runCode}
+            disabled={loading}
+            className="px-6 py-2 bg-green-600 rounded hover:bg-green-700 font-bold transition-colors"
+          >
+            ▶ Run Code
+          </button>
+        </div>
       </div>
 
-      <button
-        onClick={runCode}
-        disabled={loading}
-        className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+      {/* Main Workspace */}
+      <Split 
+        className="flex-1 flex flex-row overflow-hidden" 
+        sizes={[50, 50]} 
+        minSize={200} 
+        gutterSize={10}
+        gutterAlign="center"
+        direction="horizontal"
       >
-        Run Test Code
-      </button>
+        {/* Left: Editor */}
+        <div className="h-full bg-[#1e1e1e]">
+          <CodeEditor code={code} onChange={(val) => setCode(val || "")} />
+        </div>
 
-      {/* Output Box */}
-      <div className="mt-6 bg-gray-900 text-green-400 p-4 rounded h-64 overflow-auto whitespace-pre-wrap">
-        {output || "// Output will appear here..."}
-      </div>
+        {/* Right: Output Terminal */}
+        <div className="h-full bg-black p-4 font-mono text-sm overflow-auto border-l border-gray-800">
+          <div className="text-gray-500 mb-2 uppercase text-xs tracking-wider">Terminal Output</div>
+          <pre className="whitespace-pre-wrap text-green-400">
+            {output || "// Click Run to execute..."}
+          </pre>
+        </div>
+      </Split>
     </div>
   );
 }
