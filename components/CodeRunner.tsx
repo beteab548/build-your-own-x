@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -17,12 +18,31 @@ console.log('Database created!');
 const content = fs.readFileSync('db.json', 'utf-8');
 console.log('File contents:', content);
 `;
-
+const FILES = {
+  'index.js': {
+    code: `const db = require('./db.js');
+console.log('Starting App...');
+db.save('user_1', { name: 'Alice' });
+console.log(db.read('user_1'));`
+  },
+  'db.js': {
+    code: `const fs = require('fs');
+module.exports = {
+  save: (id, data) => fs.writeFileSync(id + '.json', JSON.stringify(data)),
+  read: (id) => fs.readFileSync(id + '.json', 'utf-8')
+};`
+  },
+  'package.json': {
+    code: `{"name": "my-database", "type": "commonjs"}`
+  }
+};
 export default function CodeRunner() {
-  const [code, setCode] = useState(INITIAL_CODE);
-  const [output, setOutput] = useState("");
-  const [webContainer, setWebContainer] = useState<WebContainer | null>(null);
-  const [loading, setLoading] = useState(true);
+const [code, setCode] = useState(INITIAL_CODE);
+const [output, setOutput] = useState("");
+const [webContainer, setWebContainer] = useState<WebContainer | null>(null);
+const [files, setFiles] = useState<Record<string, { code: string }>>(FILES);
+const [activeFile, setActiveFile] = useState<string>('index.js');
+const [loading, setLoading] = useState(true);
 
   // Boot Node.js on load
   useEffect(() => {
@@ -44,17 +64,27 @@ export default function CodeRunner() {
     setOutput("Running...\n");
 
     try {
+// ... inside runCode function ...
+
+// Prepare the files for WebContainer
+const fileSystem: Record<string, { file: { contents: string } }> = {};
+Object.keys(files).forEach(filename => {
+  fileSystem[filename] = {
+    file: {
+      contents: files[filename].code
+    }
+  };
+});
+// Mount the entire system
+await webContainer.mount(fileSystem);
+
+// Run index.js (Entry point)
+const process = await webContainer.spawn('node', ['index.js']);
+
       // 1. Mount the code from the EDITOR into the virtual file system
-      await webContainer.mount({
-        'index.js': {
-          file: {
-            contents: code, // <--- This uses the state from the editor
-          },
-        },
-      });
+   
 
       // 2. Run the file
-      const process = await webContainer.spawn('node', ['index.js']);
 
       // 3. Stream output
       process.output.pipeTo(
@@ -96,7 +126,20 @@ export default function CodeRunner() {
           </button>
         </div>
       </div>
-
+{/* File Explorer Toolbar */}
+<div className="bg-gray-800 border-b border-gray-700 flex gap-1 overflow-x-auto">
+  {Object.keys(files).map((filename) => (
+    <button
+      key={filename}
+      onClick={() => setActiveFile(filename)}
+      className={`px-4 py-2 text-sm border-r border-gray-700 hover:bg-gray-700 transition-colors ${
+        activeFile === filename ? 'bg-[#1e1e1e] text-white font-bold border-t-2 border-t-blue-500' : 'text-gray-400'
+      }`}
+    >
+      {filename}
+    </button>
+  ))}
+</div>
       {/* Main Workspace */}
       <Split 
         className="flex-1 flex flex-row overflow-hidden" 
@@ -106,10 +149,19 @@ export default function CodeRunner() {
         gutterAlign="center"
         direction="horizontal"
       >
-        {/* Left: Editor */}
-        <div className="h-full bg-[#1e1e1e]">
-          <CodeEditor code={code} onChange={(val) => setCode(val || "")} />
-        </div>
+      {/* Left: Editor */}
+<div className="h-full bg-[#1e1e1e]">
+  <CodeEditor 
+    code={files[activeFile].code} 
+    onChange={(newContent) => {
+      // Update the specific file in our state object
+      setFiles({
+        ...files,
+        [activeFile]: { code: newContent || "" }
+      });
+    }} 
+  />
+</div>
 
         {/* Right: Output Terminal */}
         <div className="h-full bg-black p-4 font-mono text-sm overflow-auto border-l border-gray-800">
