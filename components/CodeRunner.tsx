@@ -5,7 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { WebContainer } from '@webcontainer/api';
 import Split from 'react-split'; // The draggable splitter
 import CodeEditor from './Editor'; // The file you just made
-
+import ReactMarkdown from 'react-markdown';
+import { COURSE } from '../data/course';
 // Initial boilerplate code for the user
 const INITIAL_CODE = `const fs = require('fs');
 
@@ -42,6 +43,8 @@ const [output, setOutput] = useState("");
 const [webContainer, setWebContainer] = useState<WebContainer | null>(null);
 const [files, setFiles] = useState<Record<string, { code: string }>>(FILES);
 const [activeFile, setActiveFile] = useState<string>('index.js');
+const [currentStepIndex, setCurrentStepIndex] = useState(0);
+const currentStep = COURSE.steps[currentStepIndex];
 const [loading, setLoading] = useState(true);
 
   // Boot Node.js on load
@@ -108,69 +111,91 @@ const process = await webContainer.spawn('node', ['index.js']);
     }
   };
 
-  return (
-    <div className="h-screen flex flex-col bg-gray-900 text-white">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-        <h1 className="font-bold text-xl">Build Your Own Database</h1>
-        <div className="flex gap-4 items-center">
-           <span className={`text-sm ${loading ? 'text-yellow-500' : 'text-green-500'}`}>
-             {loading ? 'Booting Node...' : '● System Ready'}
-           </span>
-           <button
-            onClick={runCode}
-            disabled={loading}
-            className="px-6 py-2 bg-green-600 rounded hover:bg-green-700 font-bold transition-colors"
-          >
-            ▶ Run Code
-          </button>
-        </div>
+return (
+  <div className="h-screen flex flex-col bg-gray-900 text-white">
+    {/* Top Navigation Bar */}
+    <div className="h-12 border-b border-gray-700 flex items-center justify-between px-4 bg-gray-800">
+      <h1 className="font-bold text-sm text-gray-300">{COURSE.title}</h1>
+      <div className="flex gap-2">
+        <button 
+          disabled={currentStepIndex === 0}
+          onClick={() => setCurrentStepIndex(i => i - 1)}
+          className="text-xs bg-gray-700 px-3 py-1 rounded disabled:opacity-30"
+        >
+          ← Prev
+        </button>
+        <span className="text-xs py-1">Step {currentStepIndex + 1} / {COURSE.steps.length}</span>
+        <button 
+          disabled={currentStepIndex === COURSE.steps.length - 1}
+          onClick={() => setCurrentStepIndex(i => i + 1)}
+          className="text-xs bg-blue-600 px-3 py-1 rounded disabled:opacity-30"
+        >
+          Next →
+        </button>
       </div>
-{/* File Explorer Toolbar */}
-<div className="bg-gray-800 border-b border-gray-700 flex gap-1 overflow-x-auto">
-  {Object.keys(files).map((filename) => (
-    <button
-      key={filename}
-      onClick={() => setActiveFile(filename)}
-      className={`px-4 py-2 text-sm border-r border-gray-700 hover:bg-gray-700 transition-colors ${
-        activeFile === filename ? 'bg-[#1e1e1e] text-white font-bold border-t-2 border-t-blue-500' : 'text-gray-400'
-      }`}
-    >
-      {filename}
-    </button>
-  ))}
-</div>
-      {/* Main Workspace */}
-      <Split 
-        className="flex-1 flex flex-row overflow-hidden" 
-        sizes={[50, 50]} 
-        minSize={200} 
-        gutterSize={10}
-        gutterAlign="center"
-        direction="horizontal"
-      >
-      {/* Left: Editor */}
-<div className="h-full bg-[#1e1e1e]">
-  <CodeEditor 
-    code={files[activeFile].code} 
-    onChange={(newContent) => {
-      // Update the specific file in our state object
-      setFiles({
-        ...files,
-        [activeFile]: { code: newContent || "" }
-      });
-    }} 
-  />
-</div>
-
-        {/* Right: Output Terminal */}
-        <div className="h-full bg-black p-4 font-mono text-sm overflow-auto border-l border-gray-800">
-          <div className="text-gray-500 mb-2 uppercase text-xs tracking-wider">Terminal Output</div>
-          <pre className="whitespace-pre-wrap text-green-400">
-            {output || "// Click Run to execute..."}
-          </pre>
-        </div>
-      </Split>
     </div>
-  );
+
+    {/* Main Content Area */}
+    <Split 
+      className="flex-1 flex flex-row overflow-hidden" 
+      sizes={[30, 70]} // 30% Instructions, 70% Code
+      minSize={200} 
+      gutterSize={8}
+    >
+      {/* 1. LEFT PANEL: INSTRUCTIONS */}
+      <div className="h-full bg-[#111] overflow-y-auto p-6 prose prose-invert max-w-none">
+        <h2 className="text-xl font-bold mb-4 text-blue-400">{currentStep.title}</h2>
+        {/* This renders the Markdown text safely */}
+        <ReactMarkdown>{currentStep.content}</ReactMarkdown>
+      </div>
+
+      {/* 2. RIGHT PANEL: WORKSPACE (Editor + Terminal) */}
+      <div className="h-full flex flex-col">
+        {/* File Tabs */}
+        <div className="bg-[#1e1e1e] flex text-sm">
+          {Object.keys(files).map((filename) => (
+            <button
+              key={filename}
+              onClick={() => setActiveFile(filename)}
+              className={`px-4 py-2 border-r border-gray-700 ${
+                activeFile === filename ? 'bg-[#1e1e1e] text-white' : 'bg-[#2d2d2d] text-gray-400'
+              }`}
+            >
+              {filename}
+            </button>
+          ))}
+          <div className="flex-1 bg-[#2d2d2d] border-b border-gray-700"></div> {/* Spacer */}
+        </div>
+
+        {/* Inner Split: Editor & Terminal */}
+        <Split 
+          className="flex-1 flex flex-col" 
+          sizes={[70, 30]} // 70% Editor, 30% Terminal
+          direction="vertical"
+        >
+          {/* EDITOR */}
+          <div className="relative h-full">
+             <CodeEditor 
+                code={files[activeFile]?.code || ""} 
+                onChange={(val) => setFiles({...files, [activeFile]: { code: val || "" }})} 
+             />
+          </div>
+
+          {/* TERMINAL */}
+          <div className="bg-black p-2 font-mono text-sm overflow-auto flex flex-col h-full border-t border-gray-700">
+             <div className="flex justify-between items-center mb-2 px-2">
+               <span className="text-gray-500 text-xs">TERMINAL</span>
+               <button onClick={runCode} className="text-xs bg-green-700 text-white px-3 py-1 rounded hover:bg-green-600">
+                 ▶ Run Code
+               </button>
+             </div>
+             <pre className="flex-1 whitespace-pre-wrap text-green-400 p-2">
+               {output || "Ready..."}
+             </pre>
+          </div>
+        </Split>
+      </div>
+    </Split>
+  </div>
+);
 }
