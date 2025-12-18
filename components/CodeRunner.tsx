@@ -7,6 +7,8 @@ import Split from 'react-split'; // The draggable splitter
 import CodeEditor from './Editor'; // The file you just made
 import ReactMarkdown from 'react-markdown';
 import { COURSE } from '../data/course';
+
+type FileMap = Record<string, { code: string }>;
 // Initial boilerplate code for the user
 const INITIAL_CODE = `const fs = require('fs');
 
@@ -38,14 +40,22 @@ module.exports = {
   }
 };
 export default function CodeRunner() {
+  const [mounted, setMounted] = useState(false);
+
+useEffect(() => {
+  setMounted(true);
+}, []);
+
 const [code, setCode] = useState(INITIAL_CODE);
 const [output, setOutput] = useState("");
 const [webContainer, setWebContainer] = useState<WebContainer | null>(null);
-const [files, setFiles] = useState<Record<string, { code: string }>>(FILES);
 const [activeFile, setActiveFile] = useState<string>('index.js');
 const [currentStepIndex, setCurrentStepIndex] = useState(0);
 const currentStep = COURSE.steps[currentStepIndex];
 const [loading, setLoading] = useState(true);
+const [files, setFiles] = useState<FileMap>(() =>
+  structuredClone(COURSE.steps[0].initialFiles!)
+);
 
   // Boot Node.js on load
   useEffect(() => {
@@ -60,7 +70,37 @@ const [loading, setLoading] = useState(true);
     }
     boot();
   }, []);
+  useEffect(() => {
+  if (!mounted) return;
 
+  const saved = localStorage.getItem('my-course-progress');
+  if (saved) {
+    setFiles(JSON.parse(saved));
+  }
+}, [mounted]);
+
+useEffect(() => {
+    localStorage.setItem('my-course-progress', JSON.stringify(files));
+  }, [files]);
+
+  // ---------------------------------------------------------
+  // 2. SMART MERGING: Handle Step Changes
+  // ---------------------------------------------------------
+  const handleStepChange = (newIndex: number) => {
+    const nextStep = COURSE.steps[newIndex];
+    
+    // If the next step has "newFiles", add them to our file system
+   
+    if (nextStep.newFiles) {
+  setFiles((prev:any) => ({
+    ...prev,
+    ...structuredClone(nextStep.newFiles)
+  }));
+}
+
+    // Actually change the step
+    setCurrentStepIndex(newIndex);
+  };
   const runCode = async () => {
     if (!webContainer) return;
     
@@ -110,6 +150,7 @@ const process = await webContainer.spawn('node', ['index.js']);
       setOutput(`System Error: ${e}`);
     }
   };
+if (!mounted) return null;
 
 return (
   <div className="h-screen flex flex-col bg-gray-900 text-white">
@@ -153,8 +194,11 @@ return (
       <div className="h-full flex flex-col">
         {/* File Tabs */}
         <div className="bg-[#1e1e1e] flex text-sm">
-          {Object.keys(files).map((filename) => (
-            <button
+        
+          {Object.keys(files)
+  .sort()
+  .map((filename) => (
+  <button
               key={filename}
               onClick={() => setActiveFile(filename)}
               className={`px-4 py-2 border-r border-gray-700 ${
@@ -162,8 +206,9 @@ return (
               }`}
             >
               {filename}
-            </button>
-          ))}
+    </button>
+))}
+
           <div className="flex-1 bg-[#2d2d2d] border-b border-gray-700"></div> {/* Spacer */}
         </div>
 
