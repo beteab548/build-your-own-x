@@ -220,10 +220,17 @@ return (
         >
           {/* EDITOR */}
           <div className="relative h-full">
-             <CodeEditor 
-                code={files[activeFile]?.code || ""} 
-                onChange={(val) => setFiles({...files, [activeFile]: { code: val || "" }})} 
-             />
+            <CodeEditor
+  code={activeFile && files[activeFile]?.code ? files[activeFile].code : ""}
+  onChange={(val) => {
+    if (!activeFile) return;
+    setFiles(prev => ({
+      ...prev,
+      [activeFile]: { code: val || "" }
+    }));
+  }}
+/>
+
           </div>
 
           {/* TERMINAL */}
