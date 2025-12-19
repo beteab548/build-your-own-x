@@ -73,7 +73,38 @@ module.exports = { set, get };
         'package.json': {
           code: `{"name": "mini-db", "type": "commonjs"}`
         }
-      }
+      },
+      testCode: `
+        const fs = require('fs');
+        const db = require('./database.js');
+
+        try {
+          // 1. Clean up previous runs
+          if (fs.existsSync('storage.json')) fs.unlinkSync('storage.json');
+
+          // 2. Run the User's Code
+          console.log("🧪 Testing: db.set('test_user', { id: 1 })...");
+          db.set('test_user', { id: 1 });
+
+          // 3. Verify the file was created
+          if (!fs.existsSync('storage.json')) {
+            throw new Error("FAIL: 'storage.json' was not created.");
+          }
+
+          // 4. Verify the content
+          const content = fs.readFileSync('storage.json', 'utf-8');
+          const data = JSON.parse(content);
+          
+          if (data['test_user'] && data['test_user'].id === 1) {
+            console.log("✅ SUCCESS_TOKEN"); // This is the secret password we look for
+          } else {
+            throw new Error("FAIL: Saved data does not match what was expected.");
+          }
+
+        } catch (err) {
+          console.error(err.message);
+        }
+      `
     },
     {
       id: 2,

@@ -18,7 +18,7 @@ export default function CodeRunner() {
   const currentStep = COURSE.steps[currentStepIndex];
   const currentProcessRef = useRef<any>(null);
   const hasMountedFS = useRef(false);
-
+const [isStepComplete, setIsStepComplete] = useState(false);
   const [files, setFiles] = useState<FileMap>(() =>
     structuredClone(COURSE.steps[0].initialFiles!)
   );
@@ -54,55 +54,86 @@ export default function CodeRunner() {
     if (nextStep.newFiles) {
       setFiles(prev => ({ ...prev, ...structuredClone(nextStep.newFiles) }));
     }
+    setIsStepComplete(false);
     setCurrentStepIndex(newIndex);
   };
 
- const runCode = async () => {
+const runCode = async () => {
   if (!webContainer) return;
+
+  // NEW: Reset the success state when they run code (unless they already passed)
+  // setIsStepComplete(false); // Optional: Uncomment if you want them to pass EVERY time before moving on
 
   setOutput(prev => prev + "\n▶ Running...\n");
 
   try {
-    // Merge current files with storage.json contents
+    const currentStep = COURSE.steps[currentStepIndex]; // NEW: Get current lesson data
+
+    // 1. Merge current files
     const fileSystem: Record<string, { file: { contents: string } }> = {};
 
     Object.keys(files).forEach(filename => {
       fileSystem[filename] = { file: { contents: files[filename].code } };
     });
 
-    // Read previous storage.json if exists in container
+    // NEW: Inject the Hidden Test File (only if this step has one)
+    if (currentStep.testCode) {
+      fileSystem['__test__.js'] = { file: { contents: currentStep.testCode } };
+    }
+
+    // 2. Read previous storage.json (Your Existing Logic)
     let storageContent = '{}';
     try {
       const storageFile = await webContainer.fs.readFile('storage.json', 'utf-8');
       storageContent = storageFile;
     } catch (err) {
-      // If it doesn't exist, start empty
       storageContent = '{}';
     }
 
-    fileSystem['storage.json'] = { file: { contents: storageContent } };
+    // Only add storage.json if the user didn't explicitly create a file with that name
+    if (!fileSystem['storage.json']) {
+      fileSystem['storage.json'] = { file: { contents: storageContent } };
+    }
 
-    // Mount **fresh** every run to include previous storage.json
+    // 3. Mount everything
     await webContainer.mount(fileSystem);
 
-    // Kill previous process
+    // 4. Kill previous process (Your Existing Logic)
     if (currentProcessRef.current) {
       try { currentProcessRef.current.kill(); } catch {}
     }
 
-    const process = await webContainer.spawn('node', ['index.js']);
+    // NEW: Decide what to run. 
+    // If there is a test, we run that. If not, we run index.js like normal.
+    const scriptToRun = currentStep.testCode ? '__test__.js' : 'index.js';
+
+    // 5. Spawn the process
+    const process = await webContainer.spawn('node', [scriptToRun]);
     currentProcessRef.current = process;
 
+    // 6. Handle Output & Grading
     process.output.pipeTo(
       new WritableStream({
         write(data) {
-          setOutput(prev => prev + data);
+          // NEW: Check for the secret success password
+          if (data.includes("SUCCESS_TOKEN")) {
+             setIsStepComplete(true); // <--- UNLOCKS THE NEXT BUTTON
+             
+             // Hide the ugly token, show a nice message
+             const cleanMsg = data.replace("SUCCESS_TOKEN", "\n✨ SUCCESS: Test Passed! Next level unlocked.");
+             setOutput(prev => prev + cleanMsg);
+          } else {
+             setOutput(prev => prev + data);
+          }
         }
       })
     );
 
     process.exit.then(code => {
-      setOutput(prev => prev + `\n[Process exited with code ${code}]`);
+      // Optional: Only show exit code if it failed
+      if (code !== 0) {
+        setOutput(prev => prev + `\n[Process exited with code ${code}]`);
+      }
     });
 
   } catch (e) {
