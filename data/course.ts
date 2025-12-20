@@ -48,13 +48,18 @@ console.log("File content:", fs.readFileSync('storage.json', 'utf-8'));
         },
         'database.js': {
           code: `const fs = require('fs');
-
+const FILE = 'storage.json';
 // Initialize the file if it doesn't exist
-if (!fs.existsSync('storage.json')) {
-  fs.writeFileSync('storage.json', JSON.stringify({}));
+function ensureFile() {
+  if (!fs.existsSync(FILE)) {
+    fs.writeFileSync(FILE, '{}');
+  }
 }
 
+
+
 function set(key, value) {
+  ensureFile();
   // TODO:
   // 1. Read 'storage.json'
   // 2. Parse it into an object
@@ -63,6 +68,7 @@ function set(key, value) {
 }
 
 function get(key) {
+  ensureFile();
   // We will build this later!
   return null;
 }
@@ -75,36 +81,37 @@ module.exports = { set, get };
         }
       },
       testCode: `
-        const fs = require('fs');
-        const db = require('./database.js');
+  const fs = require('fs');
+  const db = require('./database.js');
 
-        try {
-          // 1. Clean up previous runs
-          if (fs.existsSync('storage.json')) fs.unlinkSync('storage.json');
+  try {
+    // REMOVED THE LINE THAT DELETES YOUR FILE
+    // if (fs.existsSync('storage.json')) fs.unlinkSync('storage.json'); <--- GONE
 
-          // 2. Run the User's Code
-          console.log("🧪 Testing: db.set('test_user', { id: 1 })...");
-          db.set('test_user', { id: 1 });
+    // 2. Run the User's Code
+    console.log("🧪 Testing database...");
+    db.set('test_user', { id: 1 });
 
-          // 3. Verify the file was created
-          if (!fs.existsSync('storage.json')) {
-            throw new Error("FAIL: 'storage.json' was not created.");
-          }
+    // 3. Verify the file was created
+    if (!fs.existsSync('storage.json')) {
+      throw new Error("FAIL: 'storage.json' was not created.");
+    }
 
-          // 4. Verify the content
-          const content = fs.readFileSync('storage.json', 'utf-8');
-          const data = JSON.parse(content);
-          
-          if (data['test_user'] && data['test_user'].id === 1) {
-            console.log("✅ SUCCESS_TOKEN"); // This is the secret password we look for
-          } else {
-            throw new Error("FAIL: Saved data does not match what was expected.");
-          }
+    // 4. Verify the content
+    const content = fs.readFileSync('storage.json', 'utf-8');
+    const data = JSON.parse(content);
+    
+    // Check for the test user
+    if (data['test_user'] && data['test_user'].id === 1) {
+      console.log("✅ SUCCESS_TOKEN");
+    } else {
+      throw new Error("FAIL: Saved data does not match what was expected.");
+    }
 
-        } catch (err) {
-          console.error(err.message);
-        }
-      `
+  } catch (err) {
+    console.error(err.message);
+  }
+`
     },
     {
       id: 2,
@@ -127,7 +134,8 @@ Implement the \`get\` function in \`database.js\`.
       newFiles: {
         'index.js': {
           code: `const db = require('./database.js');
-
+console.log("Seeding database...");
+db.set('user_1', { name: 'Alice', age: 25 });
 // Let's see if our previous data is still there
 console.log("Reading user_1...");
 const user = db.get('user_1');

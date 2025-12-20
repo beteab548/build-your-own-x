@@ -61,76 +61,70 @@ const [isStepComplete, setIsStepComplete] = useState(false);
 const runCode = async () => {
   if (!webContainer) return;
 
-  // NEW: Reset the success state when they run code (unless they already passed)
-  // setIsStepComplete(false); // Optional: Uncomment if you want them to pass EVERY time before moving on
-
   setOutput(prev => prev + "\n▶ Running...\n");
 
   try {
-    const currentStep = COURSE.steps[currentStepIndex]; // NEW: Get current lesson data
+    const currentStep = COURSE.steps[currentStepIndex];
 
-    // 1. Merge current files
+    // 1️⃣ Prepare file system for mounting
     const fileSystem: Record<string, { file: { contents: string } }> = {};
 
+    // Include all user files
     Object.keys(files).forEach(filename => {
       fileSystem[filename] = { file: { contents: files[filename].code } };
     });
 
-    // NEW: Inject the Hidden Test File (only if this step has one)
-    if (currentStep.testCode) {
-      fileSystem['__test__.js'] = { file: { contents: currentStep.testCode } };
-    }
-
-    // 2. Read previous storage.json (Your Existing Logic)
+    // 2️⃣ Ensure storage.json exists and is loaded
     let storageContent = '{}';
     try {
-      const storageFile = await webContainer.fs.readFile('storage.json', 'utf-8');
-      storageContent = storageFile;
-    } catch (err) {
+      storageContent = await webContainer.fs.readFile('storage.json', 'utf-8');
+    } catch {
+      // File didn't exist, create it
+      await webContainer.fs.writeFile('storage.json', '{}');
       storageContent = '{}';
     }
 
-    // Only add storage.json if the user didn't explicitly create a file with that name
-    if (!fileSystem['storage.json']) {
-      fileSystem['storage.json'] = { file: { contents: storageContent } };
-    }
+    // Always mount the latest storage content
+    fileSystem['storage.json'] = { file: { contents: storageContent } };
 
-    // 3. Mount everything
+    // 3️⃣ Mount the file system
     await webContainer.mount(fileSystem);
 
-    // 4. Kill previous process (Your Existing Logic)
+    // 4️⃣ Kill previous process if any
     if (currentProcessRef.current) {
       try { currentProcessRef.current.kill(); } catch {}
     }
 
-    // NEW: Decide what to run. 
-    // If there is a test, we run that. If not, we run index.js like normal.
+    // 5️⃣ Decide script to run: test code or index.js
     const scriptToRun = currentStep.testCode ? '__test__.js' : 'index.js';
 
-    // 5. Spawn the process
+    // 6️⃣ If there is test code, inject it
+    if (currentStep.testCode) {
+      await webContainer.fs.writeFile('__test__.js', currentStep.testCode);
+    }
+
+    // 7️⃣ Spawn Node process
     const process = await webContainer.spawn('node', [scriptToRun]);
     currentProcessRef.current = process;
 
-    // 6. Handle Output & Grading
+    // 8️⃣ Stream output to terminal
     process.output.pipeTo(
       new WritableStream({
         write(data) {
-          // NEW: Check for the secret success password
+          // Handle success token for unlocking next step
           if (data.includes("SUCCESS_TOKEN")) {
-             setIsStepComplete(true); // <--- UNLOCKS THE NEXT BUTTON
-             
-             // Hide the ugly token, show a nice message
-             const cleanMsg = data.replace("SUCCESS_TOKEN", "\n✨ SUCCESS: Test Passed! Next level unlocked.");
-             setOutput(prev => prev + cleanMsg);
+            setIsStepComplete(true); // Unlock next step
+            const cleanMsg = data.replace("SUCCESS_TOKEN", "\n✨ SUCCESS: Test Passed! Next level unlocked.");
+            setOutput(prev => prev + cleanMsg);
           } else {
-             setOutput(prev => prev + data);
+            setOutput(prev => prev + data);
           }
         }
       })
     );
 
+    // 9️⃣ Append exit code if failed
     process.exit.then(code => {
-      // Optional: Only show exit code if it failed
       if (code !== 0) {
         setOutput(prev => prev + `\n[Process exited with code ${code}]`);
       }
@@ -140,6 +134,12 @@ const runCode = async () => {
     setOutput(prev => prev + `\nSYSTEM ERROR: ${String(e)}`);
   }
 };
+
+
+
+
+
+
 
 
   if (!mounted) return null;
@@ -157,10 +157,16 @@ const runCode = async () => {
           >← Prev</button>
           <span className="text-xs py-1">Step {currentStepIndex + 1} / {COURSE.steps.length}</span>
           <button 
-            disabled={currentStepIndex === COURSE.steps.length - 1}
-            onClick={() => setCurrentStepIndex(i => i + 1)}
-            className="text-xs bg-blue-600 px-3 py-1 rounded disabled:opacity-30"
-          >Next →</button>
+  disabled={!isStepComplete || currentStepIndex === COURSE.steps.length - 1}
+  onClick={() => handleStepChange(currentStepIndex + 1)}
+  className={`px-3 py-1 rounded text-xs transition-all ${
+    isStepComplete 
+      ? 'bg-green-600 hover:bg-green-500 text-white shadow-[0_0_10px_rgba(34,197,94,0.5)]' 
+      : 'bg-gray-700 text-gray-400 opacity-50 cursor-not-allowed'
+  }`}
+>
+  Next Level →
+</button>
         </div>
       </div>
 
