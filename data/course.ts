@@ -139,11 +139,11 @@ db.set('user_1', { name: 'Alice', age: 25 });
 // Let's see if our previous data is still there
 console.log("Reading user_1...");
 const user = db.get('user_1');
-console.log("Result:", user);
-
+// JSON.stringify forces it to be a clean, readable string without colors
+console.log("Result:", JSON.stringify(user, null, 2));
 if (user && user.name === 'Alice') {
-  console.log("SUCCESS: Data retrieved!");
-} else {
+  console.log("SUCCESS: Data retrieved! SUCCESS_TOKEN");
+  } else {
   console.log("FAIL: Could not read data.");
 }
 `
