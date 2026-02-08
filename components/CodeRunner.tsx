@@ -74,10 +74,29 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
     }
   }, [files, course.id, mounted]);
 
+  // Persist current step index
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem(`step-${course.id}`, String(currentStepIndex));
+    }
+  }, [currentStepIndex, course.id, mounted]);
+
+  // Load step index
+  useEffect(() => {
+    if (!mounted) return;
+    const savedStep = localStorage.getItem(`step-${course.id}`);
+    if (savedStep) {
+      setCurrentStepIndex(parseInt(savedStep, 10));
+    }
+  }, [mounted, course.id]);
+
   const handleStepChange = (newIndex: number) => {
-    const nextStep = course.steps[newIndex];
-    if (nextStep.newFiles) {
-      setFiles(prev => ({ ...prev, ...structuredClone(nextStep.newFiles) }));
+    // If we are finishing the course, newIndex will be equal to steps.length (out of bounds for steps array)
+    if (newIndex < course.steps.length) {
+      const nextStep = course.steps[newIndex];
+      if (nextStep.newFiles) {
+        setFiles(prev => ({ ...prev, ...structuredClone(nextStep.newFiles) }));
+      }
     }
     setIsStepComplete(false);
     setCurrentStepIndex(newIndex);
@@ -169,6 +188,34 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
 
   if (!mounted) return null;
 
+  // 10. Check if course is completed
+  if (currentStepIndex === course.steps.length) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6 text-center">
+        <h1 className="text-4xl font-bold mb-4 text-green-400">🎉 Course Completed!</h1>
+        <p className="text-xl text-gray-300 mb-8 max-w-lg">
+          Congratulations! You've successfully built your own <strong>{course.title}</strong>.
+          You've mastered the core concepts and constructed a working implementation from scratch.
+        </p>
+        <div className="flex gap-4">
+          <button
+            onClick={() => setCurrentStepIndex(0)} // Reset to review
+            className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          >
+            Review Code
+          </button>
+          <a
+            href="/"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors font-bold shadow-lg shadow-blue-500/30"
+          >
+            Return to Dashboard
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+
   return (
     <div className="h-screen flex flex-col bg-gray-900 text-white">
       {/* Top Navigation Bar */}
@@ -182,14 +229,14 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
           >← Prev</button>
           <span className="text-xs py-1">Step {currentStepIndex + 1} / {course.steps.length}</span>
           <button
-            disabled={!isStepComplete || currentStepIndex === course.steps.length - 1}
+            disabled={!isStepComplete}
             onClick={() => handleStepChange(currentStepIndex + 1)}
             className={`px-3 py-1 rounded text-xs transition-all ${isStepComplete
               ? 'bg-green-600 hover:bg-green-500 text-white shadow-[0_0_10px_rgba(34,197,94,0.5)]'
               : 'bg-gray-700 text-gray-400 opacity-50 cursor-not-allowed'
               }`}
           >
-            Next Level →
+            {currentStepIndex === course.steps.length - 1 ? 'Finish Course 🎉' : 'Next Level →'}
           </button>
         </div>
       </div>

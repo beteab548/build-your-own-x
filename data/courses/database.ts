@@ -188,7 +188,45 @@ db.set('user_1', { name: 'Alice', age: 26 });
 // Check your terminal output for the hash!
 `
         }
-      }
+      },
+      testCode: `
+const db = require('./database.js');
+
+// Mock console.log to capture ALL logs
+const logs = [];
+const originalLog = console.log;
+console.log = (...args) => {
+  const msg = args.join(' ');
+  logs.push(msg);
+  // We don't print to avoid cluttering, but...
+};
+
+try {
+  process.stdout.write("🧪 Testing hash implementation...\\n");
+  
+  // Call the function
+  db.set('test_hash', { id: 999 });
+
+  // Restore console
+  console.log = originalLog;
+
+  // Check if a hash occurred in ANY log
+  const hashRegex = /[0-9a-f]{64}/i;
+  const foundLog = logs.find(msg => hashRegex.test(msg));
+  
+  if (foundLog) {
+    console.log("✅ Hash detected: " + foundLog.match(hashRegex)[0]);
+    console.log("SUCCESS_TOKEN");
+  } else {
+    // console.log("Debug: Logs were:", logs);
+    throw new Error("FAIL: No SHA-256 hash detected in console.log()");
+  }
+
+} catch (err) {
+  console.log = originalLog;
+  console.log("FAIL: " + err.message);
+}
+`
     }
   ]
 };

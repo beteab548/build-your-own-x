@@ -13,13 +13,23 @@ export default function Dashboard() {
     const newProgress: Record<string, number> = {};
 
     COURSE_CATALOG.forEach(course => {
-      // We save progress as "progress-{courseId}"
-      const saved = localStorage.getItem(`progress-${course.id}`);
-      if (saved) {
-        // Simple logic: If they are on step 2 of 3, that's 66%
-        // You'd need to store 'currentStep' in your saved object to calculate this accurately
-        // For now, let's assume if data exists, they started it.
-        newProgress[course.id] = 10; // Placeholder 10%
+      // We save progress as "progress-{courseId}" (files) and "step-{courseId}" (level)
+      const savedStep = localStorage.getItem(`step-${course.id}`);
+      if (savedStep) {
+        const stepIndex = parseInt(savedStep, 10);
+        // Calculate percentage: (currentStep / totalSteps) * 100
+        // We add 1 to stepIndex because it's 0-indexed, but for progress "Step 1 of 3" is 33% complete?
+        // Actually, usually "completed" means finishing the step. 
+        // Let's say being ON step 2 of 3 means you finished step 1.
+        // So progress = (stepIndex / totalSteps) * 100
+        const percent = Math.min(100, Math.round((stepIndex / course.totalSteps) * 100));
+        newProgress[course.id] = percent;
+      } else {
+        // Check if file progress exists (started but maybe step 0)
+        const savedFiles = localStorage.getItem(`progress-${course.id}`);
+        if (savedFiles) {
+          newProgress[course.id] = 10; // 10% for just starting
+        }
       }
     });
 
