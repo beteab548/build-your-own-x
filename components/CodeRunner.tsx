@@ -111,11 +111,26 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
       const currentStep = course.steps[currentStepIndex];
 
       // 1️⃣ Prepare file system for mounting
-      const fileSystem: Record<string, { file: { contents: string } }> = {};
+      const fileSystem: Record<string, any> = {};
+
+      // Helper to ensure nested directories exist in the mount object
+      const addFileToMount = (path: string, content: string) => {
+        const parts = path.split('/');
+        let current = fileSystem;
+        for (let i = 0; i < parts.length - 1; i++) {
+          const part = parts[i];
+          if (!current[part]) {
+            current[part] = { directory: {} };
+          }
+          current = current[part].directory;
+        }
+        const fileName = parts[parts.length - 1];
+        current[fileName] = { file: { contents: content } };
+      };
 
       // Include all user files
       Object.keys(files).forEach(filename => {
-        fileSystem[filename] = { file: { contents: files[filename].code } };
+        addFileToMount(filename, files[filename].code);
       });
 
       // 2️⃣ Ensure storage.json exists and is loaded
@@ -129,7 +144,13 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
       }
 
       // Always mount the latest storage content
-      fileSystem['storage.json'] = { file: { contents: storageContent } };
+      // Always mount the latest storage content
+      addFileToMount('storage.json', storageContent);
+
+      // 6️⃣ If there is test code, inject it (must be added BEFORE mount)
+      if (currentStep.testCode) {
+        addFileToMount('__test__.js', currentStep.testCode);
+      }
 
       // 3️⃣ Mount the file system
       await webContainer.mount(fileSystem);
@@ -141,11 +162,6 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
 
       // 5️⃣ Decide script to run: test code or index.js
       const scriptToRun = currentStep.testCode ? '__test__.js' : 'index.js';
-
-      // 6️⃣ If there is test code, inject it
-      if (currentStep.testCode) {
-        await webContainer.fs.writeFile('__test__.js', currentStep.testCode);
-      }
 
       // 7️⃣ Spawn Node process
       const process = await webContainer.spawn('node', [scriptToRun]);

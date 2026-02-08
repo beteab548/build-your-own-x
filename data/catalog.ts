@@ -1,5 +1,6 @@
 import { LucideIcon, Database, Terminal, Cpu } from 'lucide-react';
 import { COURSE as DB_COURSE } from './courses/database';
+import { COURSE as CLI_COURSE } from './courses/cli';
 
 export type CourseSummary = {
     id: string;
@@ -25,7 +26,7 @@ export const COURSE_CATALOG: CourseSummary[] = [
         description: 'Create a command-line interface like "git" or "npm" using Node.js and argument parsing.',
         icon: Terminal,
         difficulty: 'Beginner',
-        totalSteps: 5, // Placeholder
+        totalSteps: CLI_COURSE.steps.length,
     },
     {
         id: 'build-own-ml',
@@ -40,6 +41,6 @@ export const COURSE_CATALOG: CourseSummary[] = [
 // Helper to get full content (we will use this later)
 export function getCourseContent(id: string) {
     if (id === 'build-own-db') return DB_COURSE;
-    // if (id === 'build-own-cli') return CLI_COURSE;
+    if (id === 'build-own-cli') return CLI_COURSE;
     return null;
 }
