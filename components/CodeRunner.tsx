@@ -186,6 +186,14 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
 
 
 
+  const [showResetModal, setShowResetModal] = useState(false);
+
+  const resetProgress = () => {
+    localStorage.removeItem(`progress-${course.id}`);
+    localStorage.removeItem(`step-${course.id}`);
+    window.location.reload();
+  };
+
   if (!mounted) return null;
 
   // 10. Check if course is completed
@@ -217,10 +225,44 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
 
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900 text-white">
+    <div className="h-screen flex flex-col bg-gray-900 text-white relative">
+      {/* Reset Modal */}
+      {showResetModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#1e1e1e] border border-gray-700 p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
+            <h3 className="text-xl font-bold text-white mb-2">Reset Progress?</h3>
+            <p className="text-gray-400 mb-6 text-sm">
+              This will delete all your code and reset you to the beginning of this course. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowResetModal(false)}
+                className="px-4 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={resetProgress}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-500 transition-colors text-sm font-medium"
+              >
+                Yes, Reset Everything
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Navigation Bar */}
       <div className="h-12 border-b border-gray-700 flex items-center justify-between px-4 bg-gray-800">
-        <h1 className="font-bold text-sm text-gray-300">{course.title}</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="font-bold text-sm text-gray-300">{course.title}</h1>
+          <button
+            onClick={() => setShowResetModal(true)}
+            className="text-xs text-red-500 hover:text-red-400 underline transition-colors"
+          >
+            Reset Progress
+          </button>
+        </div>
         <div className="flex gap-2">
           <button
             disabled={currentStepIndex === 0}
