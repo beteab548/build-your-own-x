@@ -1,6 +1,7 @@
-import { LucideIcon, Database, Terminal, Cpu } from 'lucide-react';
+import { LucideIcon, Database, Terminal, Cpu, GitBranch } from 'lucide-react';
 import { COURSE as DB_COURSE } from './courses/database';
 import { COURSE as CLI_COURSE } from './courses/cli';
+import { COURSE as GIT_COURSE } from './courses/git';
 
 export type CourseSummary = {
     id: string;
@@ -29,6 +30,14 @@ export const COURSE_CATALOG: CourseSummary[] = [
         totalSteps: CLI_COURSE.steps.length,
     },
     {
+        id: 'build-own-git',
+        title: 'Build Your Own Git',
+        description: 'Master binary data, hashing (SHA-1), and zlib compression by building Git from scratch.',
+        icon: GitBranch, // Using GitBranch icon for Git
+        difficulty: 'Advanced',
+        totalSteps: GIT_COURSE.steps.length,
+    },
+    {
         id: 'build-own-ml',
         title: 'Build Your Own ML Model',
         description: 'Understand neurons, weights, and biases by building a neural network in Python.',
@@ -42,5 +51,6 @@ export const COURSE_CATALOG: CourseSummary[] = [
 export function getCourseContent(id: string) {
     if (id === 'build-own-db') return DB_COURSE;
     if (id === 'build-own-cli') return CLI_COURSE;
+    if (id === 'build-own-git') return GIT_COURSE;
     return null;
 }
