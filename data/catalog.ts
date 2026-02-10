@@ -1,7 +1,8 @@
-import { LucideIcon, Database, Terminal, Cpu, GitBranch } from 'lucide-react';
+import { LucideIcon, Database, Terminal, Cpu, GitBranch, Server } from 'lucide-react';
 import { COURSE as DB_COURSE } from './courses/database';
 import { COURSE as CLI_COURSE } from './courses/cli';
 import { COURSE as GIT_COURSE } from './courses/git';
+import { COURSE as REDIS_COURSE } from './courses/redis';
 
 export type CourseSummary = {
     id: string;
@@ -33,9 +34,17 @@ export const COURSE_CATALOG: CourseSummary[] = [
         id: 'build-own-git',
         title: 'Build Your Own Git',
         description: 'Master binary data, hashing (SHA-1), and zlib compression by building Git from scratch.',
-        icon: GitBranch, // Using GitBranch icon for Git
+        icon: GitBranch,
         difficulty: 'Advanced',
         totalSteps: GIT_COURSE.steps.length,
+    },
+    {
+        id: 'build-own-redis',
+        title: 'Build Your Own Redis',
+        description: 'Understand networking (TCP), protocols (RESP), and in-memory storage.',
+        icon: Server,
+        difficulty: 'Intermediate',
+        totalSteps: REDIS_COURSE.steps.length,
     },
     {
         id: 'build-own-ml',
@@ -52,5 +61,6 @@ export function getCourseContent(id: string) {
     if (id === 'build-own-db') return DB_COURSE;
     if (id === 'build-own-cli') return CLI_COURSE;
     if (id === 'build-own-git') return GIT_COURSE;
+    if (id === 'build-own-redis') return REDIS_COURSE;
     return null;
 }

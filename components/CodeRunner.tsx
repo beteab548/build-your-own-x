@@ -22,6 +22,8 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
   const [mounted, setMounted] = useState(false);
   const [output, setOutput] = useState("");
   const [webContainer, setWebContainer] = useState<WebContainer | null>(null);
+  const [isBooting, setIsBooting] = useState(true);
+  const [bootProgress, setBootProgress] = useState(0);
   const [activeFile, setActiveFile] = useState<string>('index.js');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const currentStep = course.steps[currentStepIndex];
@@ -42,15 +44,44 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
   // Boot Node.js
   useEffect(() => {
     async function boot() {
+      setIsBooting(true);
       try {
         const instance = await getWebContainer();
         setWebContainer(instance);
       } catch (err) {
         console.error("Boot failed:", err);
+      } finally {
+        setBootProgress(100);
+        setTimeout(() => {
+          setIsBooting(false);
+        }, 500);
       }
     }
     boot();
   }, []);
+
+  // Simulate progress
+  useEffect(() => {
+    if (!isBooting) return;
+
+    const interval = setInterval(() => {
+      setBootProgress(prev => {
+        if (prev < 40) return prev + Math.random() * 8 + 2; // Fast start
+        if (prev < 85) return prev + Math.random() * 4 + 1; // Steady climb
+        if (prev < 98) return prev + 0.2; // Final crawl
+        return prev;
+      });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isBooting]);
+
+  const getLoadingMessage = (progress: number) => {
+    if (progress < 20) return "Initializing WebContainer engine...";
+    if (progress < 50) return "Downloading sandboxed Node.js environment...";
+    if (progress < 80) return "Mounting virtual file system...";
+    return "Finalizing secure connection...";
+  };
 
   // Load progress from localStorage
   useEffect(() => {
@@ -241,7 +272,40 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
 
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900 text-white relative">
+    <div className="h-screen flex flex-col bg-[#030406] text-white relative font-sans">
+      {/* Loading Overlay */}
+      {isBooting && (
+        <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-[#030406]/90 backdrop-blur-xl px-6">
+          <div className="relative mb-12">
+            <div className="w-24 h-24 rounded-full border-t-2 border-b-2 border-blue-500 animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-blue-500/10 blur-xl animate-pulse"></div>
+              <span className="text-xs font-mono font-bold text-blue-400">{Math.round(bootProgress)}%</span>
+            </div>
+          </div>
+
+          <div className="max-w-md w-full text-center">
+            <h2 className="text-2xl font-bold hero-gradient mb-3 tracking-tight">Preparing Environment</h2>
+            <p className="text-gray-400 font-light text-sm mb-8 flex items-center justify-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+              {getLoadingMessage(bootProgress)}
+            </p>
+
+            {/* Progress Bar Container */}
+            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mb-2 relative">
+              <div
+                className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                style={{ width: `${bootProgress}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold text-gray-600">
+              <span>Readying Engine</span>
+              <span>Fully Booted</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reset Modal */}
       {showResetModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
