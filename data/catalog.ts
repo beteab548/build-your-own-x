@@ -3,6 +3,7 @@ import { COURSE as DB_COURSE } from './courses/database';
 import { COURSE as CLI_COURSE } from './courses/cli';
 import { COURSE as GIT_COURSE } from './courses/git';
 import { COURSE as REDIS_COURSE } from './courses/redis';
+import { COURSE as ML_COURSE } from './courses/ml';
 
 export type CourseSummary = {
     id: string;
@@ -49,10 +50,10 @@ export const COURSE_CATALOG: CourseSummary[] = [
     {
         id: 'build-own-ml',
         title: 'Build Your Own ML Model',
-        description: 'Understand neurons, weights, and biases by building a neural network in Python.',
+        description: 'Understand neurons, weights, and biases by building a neural network from scratch.',
         icon: Cpu,
         difficulty: 'Advanced',
-        totalSteps: 8, // Placeholder
+        totalSteps: ML_COURSE.steps.length,
     }
 ];
 
@@ -62,5 +63,6 @@ export function getCourseContent(id: string) {
     if (id === 'build-own-cli') return CLI_COURSE;
     if (id === 'build-own-git') return GIT_COURSE;
     if (id === 'build-own-redis') return REDIS_COURSE;
+    if (id === 'build-own-ml') return ML_COURSE;
     return null;
 }

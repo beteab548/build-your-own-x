@@ -77,6 +77,7 @@ export default function Dashboard() {
           {COURSE_CATALOG.map((course) => {
             const Icon = course.icon;
             const percentage = progress[course.id] || 0;
+            const isCompleted = percentage >= 100;
 
             return (
               <Link
@@ -87,13 +88,20 @@ export default function Dashboard() {
                 {/* Visual Accent */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-blue-500/10 transition-colors"></div>
 
+                {/* Completion Badge */}
+                {isCompleted && (
+                  <div className="absolute top-4 left-4 z-10 flex items-center gap-1 px-3 py-1 bg-green-500/20 border border-green-500/50 rounded-full">
+                    <span className="text-green-400 text-xs font-bold">✓ COMPLETED</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between items-start mb-8 relative z-10">
                   <div className="p-4 bg-white/5 rounded-2xl group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-all duration-500">
                     <Icon size={28} strokeWidth={1.5} />
                   </div>
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border ${course.difficulty === 'Beginner' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5' :
-                      course.difficulty === 'Intermediate' ? 'border-amber-500/30 text-amber-400 bg-amber-500/5' :
-                        'border-rose-500/30 text-rose-400 bg-rose-500/5'
+                    course.difficulty === 'Intermediate' ? 'border-amber-500/30 text-amber-400 bg-amber-500/5' :
+                      'border-rose-500/30 text-rose-400 bg-rose-500/5'
                     }`}>
                     {course.difficulty}
                   </span>

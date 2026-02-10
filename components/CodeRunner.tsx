@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { getWebContainer } from '../lib/webcontainer';
 import { WebContainer } from '@webcontainer/api';
 import Split from 'react-split';
 import CodeEditor from './Editor';
 import ReactMarkdown from 'react-markdown';
 import { Step } from '../data/courses/database';
+import ExportButton from './ExportButton';
+import { findHints, getCourseHints } from '../lib/hints';
+import CompletionCertificate from './CompletionCertificate';
 
 type FileMap = Record<string, { code: string }>;
 
@@ -30,6 +33,8 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
   const currentProcessRef = useRef<any>(null);
   const hasMountedFS = useRef(false);
   const [isStepComplete, setIsStepComplete] = useState(false);
+  const [hints, setHints] = useState<string[]>([]);
+  const [showCertificate, setShowCertificate] = useState(false);
 
   // Initialize files state - conditionally to avoid hydration mismatch, 
   // but simpler to use useEffect for load.
@@ -205,10 +210,19 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
             // Handle success token for unlocking next step
             if (data.includes("SUCCESS_TOKEN")) {
               setIsStepComplete(true); // Unlock next step
+              setHints([]); // Clear hints on success
               const cleanMsg = data.replace("SUCCESS_TOKEN", "\n✨ SUCCESS: Test Passed! Next level unlocked.");
               setOutput(prev => prev + cleanMsg);
             } else {
               setOutput(prev => prev + data);
+
+              // Check for errors and provide hints
+              if (data.includes("FAIL") || data.includes("ERROR")) {
+                const matchedHints = findHints(data);
+                if (matchedHints.length > 0) {
+                  setHints(matchedHints.map(h => h.hint));
+                }
+              }
             }
           }
         })
@@ -246,27 +260,43 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
   // 10. Check if course is completed
   if (currentStepIndex === course.steps.length) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6 text-center">
-        <h1 className="text-4xl font-bold mb-4 text-green-400">🎉 Course Completed!</h1>
-        <p className="text-xl text-gray-300 mb-8 max-w-lg">
-          Congratulations! You've successfully built your own <strong>{course.title}</strong>.
-          You've mastered the core concepts and constructed a working implementation from scratch.
-        </p>
-        <div className="flex gap-4">
-          <button
-            onClick={() => setCurrentStepIndex(0)} // Reset to review
-            className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
-          >
-            Review Code
-          </button>
-          <a
-            href="/"
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors font-bold shadow-lg shadow-blue-500/30"
-          >
-            Return to Dashboard
-          </a>
+      <>
+        {showCertificate && (
+          <CompletionCertificate
+            courseName={course.title}
+            courseId={course.id}
+            onClose={() => setShowCertificate(false)}
+          />
+        )}
+
+        <div className="h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-green-400">🎉 Course Completed!</h1>
+          <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-lg">
+            Congratulations! You've successfully built your own <strong>{course.title}</strong>.
+            You've mastered the core concepts and constructed a working implementation from scratch.
+          </p>
+          <div className="flex flex-wrap gap-4 justify-center">
+            <button
+              onClick={() => setShowCertificate(true)}
+              className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-500 transition-colors font-bold shadow-lg shadow-yellow-500/30"
+            >
+              🏆 Get Certificate
+            </button>
+            <button
+              onClick={() => setCurrentStepIndex(0)} // Reset to review
+              className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              Review Code
+            </button>
+            <a
+              href="/"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors font-bold shadow-lg shadow-blue-500/30"
+            >
+              Return to Dashboard
+            </a>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -342,6 +372,11 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
           >
             Reset Progress
           </button>
+          <ExportButton
+            files={files}
+            courseName={course.title}
+            courseId={course.id}
+          />
         </div>
         <div className="flex gap-2">
           <button
@@ -410,6 +445,17 @@ export default function CodeRunner({ course }: CodeRunnerProps) {
                 className="text-xs bg-green-700 px-3 py-1 rounded hover:bg-green-600"
               >▶ Run Code</button>
             </div>
+
+            {/* Hints Section */}
+            {hints.length > 0 && (
+              <div className="bg-yellow-900/20 border-b border-yellow-700/30 px-2 py-2 text-yellow-300 text-xs">
+                <div className="font-bold mb-1">💡 Hints:</div>
+                {hints.map((hint, i) => (
+                  <div key={i} className="ml-4 mb-1">• {hint}</div>
+                ))}
+              </div>
+            )}
+
             <pre className="flex-1 overflow-auto whitespace-pre-wrap text-green-400 p-2">
               {output || "Ready..."}
             </pre>
